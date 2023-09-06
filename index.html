@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compress & Upload Image</title>
+    
+    <!-- Add Bootstrap CSS link -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+
+<div class="container">
+	<div class="mt-5">
+		<center>
+			<input type="file" class="col-md-5" id="imageInput" multiple accept="image/*">
+		</center>
+
+		<hr />
+	</div>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script type="text/javascript">
+	const imageInput = document.getElementById('imageInput');
+	imageInput.addEventListener('change', handleImageSelect);
+
+
+	async function handleImageSelect(event) {
+	  	const files  = Array.from(event.target.files);
+
+        const compressedImages = await Promise.all(files.map(file => resizeImage({ file, maxWidth: 1500, maxHeight: 1000 })));
+
+        if (Array.isArray(compressedImages) && compressedImages.length > 0) {  
+
+    	    let formData = new FormData();
+	        for (let i = 0; i < compressedImages.length; i++) {
+	            let file = compressedImages[i];
+	            if(file){
+	                formData.append('files', file);
+	            }
+	        }
+
+	        let response = await uploadImages(formData)
+	        console.log('response', response);
+        }
+        else{
+        	console.log('your message')
+        }
+	}
+
+	async function uploadImages(formData){
+		const url = 'https://example.com/api';
+		const requestOptions = {method: 'POST', body: formData};
+		return await fetch(url, requestOptions)
+	}
+
+	//Check is file is image
+	function isFileImage(file) {
+	    const acceptedImageTypes = ['image/gif', 'image/jpeg', 'image/png', 'image/webp'];
+	    return file && acceptedImageTypes.includes(file['type'])
+	}
+
+	//Resize & Compress
+	var resizeImage = function (settings) {
+	    var file      = settings.file;
+	    var maxWidth  = settings.maxWidth;
+	    var maxHeight = settings.maxHeight;
+	    var reader    = new FileReader();
+	    var image     = new Image();
+	    var canvas    = document.createElement("canvas");
+
+	    if(isFileImage(file) == false){
+	        return;
+	    }
+
+	    var dataURItoBlob = function (dataURI) {
+	        var bytes = dataURI.split(",")[0].indexOf("base64") >= 0 ? atob(dataURI.split(",")[1]) : unescape(dataURI.split(",")[1]);
+	        var mime = dataURI.split(",")[0].split(":")[1].split(";")[0];
+	        var max = bytes.length;
+	        var ia = new Uint8Array(max);
+	        for (var i = 0; i < max; i++) ia[i] = bytes.charCodeAt(i);
+	        return new Blob([ia], { type: mime });
+	    };
+
+	    var resize = function () {
+	        let newWidth  = image.width;
+	        let newHeight = image.height;
+
+	        if (image.width > maxWidth) {
+	            newWidth  = maxWidth;
+	            newHeight = (image.height * maxWidth) / image.width;
+	        }
+
+	        if (newHeight > maxHeight) {
+	            newHeight = maxHeight;
+	            newWidth  = (image.width * maxHeight) / image.height;
+	        }
+
+	        canvas.width  = newWidth;
+	        canvas.height = newHeight;
+
+	        canvas.getContext("2d").drawImage(image, 0, 0, newWidth, newHeight);
+	        var dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+
+	        let blob = dataURItoBlob(dataUrl);
+	        return new File([blob], file.name, {type: blob.type})
+	    };
+
+	    return new Promise(function (ok, no) {
+	        if (!file.type.match(/image.*/)) {
+	            no(new Error("Not an image"));
+
+	            canvas.remove();
+	            return;
+	        }
+	        reader.onload = function (readerEvent) {
+	            image.onload = function () {
+
+	                canvas.remove();
+	                return ok(resize());
+	            };
+	            image.src = readerEvent.target.result;
+	        };
+	        reader.readAsDataURL(file);
+	    });
+
+	};
+
+</script>
+
+</body>
+</html>
